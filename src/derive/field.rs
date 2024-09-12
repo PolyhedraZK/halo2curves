@@ -123,7 +123,6 @@ macro_rules! field_common {
                 $field([d0, d1, d2, d3])
             }
 
-
             #[inline]
             const fn montgomery_form(val: [u64; 4], r: $field) -> $field {
                 // Converts a 4 64-bit limb value into its congruent field representation.

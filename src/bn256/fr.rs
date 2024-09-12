@@ -40,20 +40,8 @@ use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 // The internal representation of this type is four 64-bit unsigned
 // integers in little-endian order. `Fr` values are always in
 // Montgomery form; i.e., Fr(a) = aR mod r, with R = 2^256.
-#[derive(Clone, Copy, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Fr(pub(crate) [u64; 4]);
-
-impl PartialEq for Fr {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        // the downstream may use non-canonical encoding of the field element
-        // so we convert to the canonical form before comparing
-        let a_fr = self.to_repr();
-        let b_fr = other.to_repr();
-
-        a_fr == b_fr
-    }
-}
 
 #[cfg(feature = "derive_serde")]
 crate::serialize_deserialize_32_byte_primefield!(Fr);
