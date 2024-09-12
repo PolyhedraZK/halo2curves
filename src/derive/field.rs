@@ -3,13 +3,13 @@ macro_rules! impl_from_u64_u32 {
     ($field:ident, $r2:ident) => {
         impl From<u64> for $field {
             fn from(val: u64) -> $field {
-                $field([val, 0, 0, 0]) * $r2
+                $field::montgomery_form_short(val, $r2)
             }
         }
 
         impl From<u32> for $field {
             fn from(val: u32) -> $field {
-                $field([val as u64, 0, 0, 0]) * $r2
+                $field::montgomery_form_short(val as u64, $r2)
             }
         }
     };
@@ -69,6 +69,62 @@ macro_rules! field_common {
                 $crate::ff_ext::jacobi::jacobi::<5>(&self.0, &$modulus.0)
             }
 
+            #[inline]
+            pub(crate) const fn montgomery_form_short(val: u64, r: $field) -> $field {
+                // Converts a 4 64-bit limb value into its congruent field representation.
+                // If `val` represents a 256 bit value then `r` should be R^2,
+                // if `val` represents the 256 MSB of a 512 bit value, then `r` should be R^3.
+
+                let (r0, carry) = mac(0, val, r.0[0], 0);
+                let (r1, carry) = mac(0, val, r.0[1], carry);
+                let (r2, carry) = mac(0, val, r.0[2], carry);
+                let (r3, r4) = mac(0, val, r.0[3], carry);
+
+                // Montgomery reduction
+                let k = r0.wrapping_mul($inv);
+                let (_, carry) = mac(r0, k, $modulus.0[0], 0);
+                let (r1, carry) = mac(r1, k, $modulus.0[1], carry);
+                let (r2, carry) = mac(r2, k, $modulus.0[2], carry);
+                let (r3, carry) = mac(r3, k, $modulus.0[3], carry);
+                let (r4, carry2) = adc(r4, 0, carry);
+
+                let k = r1.wrapping_mul($inv);
+                let (_, carry) = mac(r1, k, $modulus.0[0], 0);
+                let (r2, carry) = mac(r2, k, $modulus.0[1], carry);
+                let (r3, carry) = mac(r3, k, $modulus.0[2], carry);
+                let (r4, carry) = mac(r4, k, $modulus.0[3], carry);
+                let (r5, carry2) = add(carry2, carry);
+
+                let k = r2.wrapping_mul($inv);
+                let (_, carry) = mac(r2, k, $modulus.0[0], 0);
+                let (r3, carry) = mac(r3, k, $modulus.0[1], carry);
+                let (r4, carry) = mac(r4, k, $modulus.0[2], carry);
+                let (r5, carry) = mac(r5, k, $modulus.0[3], carry);
+                let (r6, carry2) = add(carry2, carry);
+
+                let k = r3.wrapping_mul($inv);
+                let (_, carry) = mac(r3, k, $modulus.0[0], 0);
+                let (r4, carry) = mac(r4, k, $modulus.0[1], carry);
+                let (r5, carry) = mac(r5, k, $modulus.0[2], carry);
+                let (r6, carry) = mac(r6, k, $modulus.0[3], carry);
+                let (r7, carry2) = add(carry2, carry);
+
+                // Result may be within MODULUS of the correct value
+                let (d0, borrow) = sbb(r4, $modulus.0[0], 0);
+                let (d1, borrow) = sbb(r5, $modulus.0[1], borrow);
+                let (d2, borrow) = sbb(r6, $modulus.0[2], borrow);
+                let (d3, borrow) = sbb(r7, $modulus.0[3], borrow);
+                let (_, borrow) = sbb(carry2, 0, borrow);
+                let (d0, carry) = adc(d0, $modulus.0[0] & borrow, 0);
+                let (d1, carry) = adc(d1, $modulus.0[1] & borrow, carry);
+                let (d2, carry) = adc(d2, $modulus.0[2] & borrow, carry);
+                let (d3, _) = adc(d3, $modulus.0[3] & borrow, carry);
+
+                $field([d0, d1, d2, d3])
+            }
+
+
+            #[inline]
             const fn montgomery_form(val: [u64; 4], r: $field) -> $field {
                 // Converts a 4 64-bit limb value into its congruent field representation.
                 // If `val` represents a 256 bit value then `r` should be R^2,
@@ -136,7 +192,7 @@ macro_rules! field_common {
 
                 $field([d0, d1, d2, d3])
             }
-            
+
             #[inline(always)]
             fn from_u512(limbs: [u64; 8]) -> $field {
                 // We reduce an arbitrary 512-bit number by decomposing it into two 256-bit digits
@@ -464,7 +520,7 @@ macro_rules! field_arithmetic {
                         }
                         c_2 = c;
 
-                        let m = t[0].wrapping_mul(INV);
+                        let m = t[0].wrapping_mul($inv);
                         (_, c) = macx(t[0], m, $modulus.0[0]);
 
                         for j in 1..4 {
@@ -747,7 +803,7 @@ macro_rules! field_bits {
 
                 ::ff::FieldBits::new(limbs)
             }
-            
+
             #[inline(always)]
             fn char_le_bits() -> ::ff::FieldBits<Self::ReprBits> {
                 ::ff::FieldBits::new($modulus.0)

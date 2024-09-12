@@ -18,7 +18,7 @@ pub use table::FR_TABLE;
 #[cfg(not(feature = "bn256-table"))]
 use crate::impl_from_u64_u32;
 
-use crate::arithmetic::{adc, bigint_geq, mac, sbb};
+use crate::arithmetic::{adc, add, bigint_geq, mac, sbb};
 use crate::extend_field_legendre;
 use crate::ff::{FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
 use crate::{
@@ -54,7 +54,6 @@ impl PartialEq for Fr {
         a_fr == b_fr
     }
 }
-
 
 #[cfg(feature = "derive_serde")]
 crate::serialize_deserialize_32_byte_primefield!(Fr);
@@ -198,7 +197,7 @@ impl From<u64> for Fr {
         if val < 65536 {
             FR_TABLE[val as usize]
         } else {
-            Fr([val, 0, 0, 0]) * R2
+            Fr::montgomery_form_short(val, R2)
         }
     }
 }
@@ -208,7 +207,7 @@ impl From<u32> for Fr {
         if val < 65536 {
             FR_TABLE[val as usize]
         } else {
-            Fr([val as u64, 0, 0, 0]) * R2
+            Fr::montgomery_form_short(val as u64, R2)
         }
     }
 }
@@ -398,5 +397,21 @@ mod test {
         let _res: Vec<_> = base.map(Fr::from).collect();
 
         end_timer!(timer);
+    }
+
+    #[test]
+    fn test_montgomery_form() {
+        let mut rng = ark_std::test_rng();
+        let a4 = [1u64, 0, 0, 0];
+        let a_mont = Fr::from(a4);
+        let a_mont2 = Fr::montgomery_form_short(a4[0], R2);
+        assert_eq!(a_mont, a_mont2);
+
+        for _ in 0..1 {
+            let a = rng.next_u64();
+            let a_mont = Fr::montgomery_form_short(a, R2);
+            let a_fr = Fr::from(a);
+            assert_eq!(a_fr, a_mont);
+        }
     }
 }
