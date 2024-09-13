@@ -1,4 +1,4 @@
-use crate::arithmetic::{adc, bigint_geq, mac, macx, sbb};
+use crate::arithmetic::{adc, add, bigint_geq, mac, macx, sbb};
 use crate::extend_field_legendre;
 use crate::ff::{FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
 use core::fmt;
@@ -120,7 +120,8 @@ const DELTA: Fq = Fq::from_raw([0x1e39a5057d81, 0, 0, 0]);
 use crate::{
     field_arithmetic, field_bits, field_common, field_specific, impl_add_binop_specify_output,
     impl_binops_additive, impl_binops_additive_specify_output, impl_binops_multiplicative,
-    impl_binops_multiplicative_mixed, impl_from_u64_u32, impl_sub_binop_specify_output, impl_sum_prod,
+    impl_binops_multiplicative_mixed, impl_from_u64_u32, impl_sub_binop_specify_output,
+    impl_sum_prod,
 };
 impl_binops_additive!(Fq, Fq);
 impl_binops_multiplicative!(Fq, Fq);
