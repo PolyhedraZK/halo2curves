@@ -10,6 +10,7 @@ use rayon::iter::{
 
 const BATCH_SIZE: usize = 64;
 
+
 fn get_booth_index(window_index: usize, window_size: usize, el: &[u8]) -> i32 {
     // Booth encoding:
     // * step by `window` size
