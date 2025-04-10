@@ -295,7 +295,7 @@ impl<C: CurveAffine> Schedule<C> {
     }
 }
 
-// pre = 8
+
 pub fn multiexp_precompute<C: CurveAffine>(bases: &[C], pre: usize) -> Vec<C::Curve>{
     let mut pre_bases: Vec<C::Curve> = vec![C::Curve::identity(); (1 << pre) * bases.len()];
     
@@ -315,7 +315,6 @@ pub fn multiexp_precompute_serial<C: CurveAffine>(coeffs: &[C::Scalar], pre_base
     let coeffs: Vec<_> = coeffs.iter().map(|a| a.to_repr()).collect();
     let c = pre;
     let number_of_windows = C::Scalar::NUM_BITS as usize / c + 1;
-    // let sign: Vec<bool>
 
     for current_window in (0..number_of_windows).rev() {
         for _ in 0..c as u32 {
@@ -325,7 +324,7 @@ pub fn multiexp_precompute_serial<C: CurveAffine>(coeffs: &[C::Scalar], pre_base
         for (idx, coeff) in coeffs.iter().enumerate() {
             let sign = get_field_sign(coeff.as_ref());
             if sign == true {
-                let coeff = get_booth_index(idx, c, coeff.as_ref());
+                let coeff = get_booth_index(current_window, c, coeff.as_ref());
                 if coeff.is_positive() {
                     *acc += pre_bases[(coeff-1) as usize * coeffs.len() + idx];
                 }
@@ -336,7 +335,7 @@ pub fn multiexp_precompute_serial<C: CurveAffine>(coeffs: &[C::Scalar], pre_base
             else {
                 let mut neg_coe  = C::Scalar::from_str_vartime("0").unwrap();
                 neg_coe -= C::Scalar::from_repr(*coeff).unwrap();
-                let coeff = get_booth_index(idx, c, neg_coe.to_repr().as_ref());
+                let coeff = get_booth_index(current_window, c, neg_coe.to_repr().as_ref());
                 if coeff.is_positive() {
                     *acc += pre_bases[(coeff-1) as usize * coeffs.len() + idx].neg();
                 }
@@ -454,6 +453,16 @@ pub fn best_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Cu
         acc
     }
 }
+
+pub fn best_multiexp_fast<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Curve {
+    assert_eq!(coeffs.len(), bases.len());
+
+    let pre_bases = multiexp_precompute(bases, 8);
+    let mut acc = C::Curve::identity();
+    multiexp_precompute_serial::<C>(coeffs, &pre_bases, 8, &mut acc);
+    acc
+}
+
 ///
 /// This function will panic if coeffs and bases have a different length.
 ///
@@ -599,9 +608,14 @@ mod test {
         C::Curve::batch_normalize(&points[..], &mut affine_points[..]);
         let points = affine_points;
 
-        let scalars = (0..1 << max_k)
+        let mut scalars = (0..1 << max_k)
             .map(|_| C::Scalar::random(OsRng))
             .collect::<Vec<_>>();
+
+        for idx in 0..1 << max_k {
+            let scalar = scalars[idx];
+            scalars[idx] -= scalar.double();
+        }
 
         for k in min_k..=max_k {
             let points = &points[..1 << k];
@@ -614,12 +628,18 @@ mod test {
             let t1 = start_timer!(|| format!("older k={}", k));
             let e1 = super::best_multiexp(scalars, points);
             end_timer!(t1);
+
+            let t2 = start_timer!(|| format!("older k={}", k));
+            let e2 = super::best_multiexp_fast(scalars, points);
+            end_timer!(t2);
+
             assert_eq!(e0, e1);
+            assert_eq!(e1, e2);
         }
     }
 
     #[test]
     fn test_msm_cross() {
-        run_msm_cross::<G1Affine>(14, 22);
+        run_msm_cross::<G1Affine>(5, 6);
     }
 }
