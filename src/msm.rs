@@ -297,7 +297,7 @@ impl<C: CurveAffine> Schedule<C> {
 
 
 pub fn multiexp_precompute<C: CurveAffine>(bases: &[C], pre: usize) -> Vec<C::Curve>{
-    let mut pre_bases: Vec<C::Curve> = vec![C::Curve::identity(); (1 << pre) * bases.len()];
+    let mut pre_bases: Vec<C::Curve> = vec![C::Curve::identity(); (1 << (pre - 1)) * bases.len()];
     
     for (idx, base) in bases.iter().enumerate() {
         pre_bases[idx] += base;
