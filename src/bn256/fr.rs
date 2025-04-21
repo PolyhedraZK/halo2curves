@@ -223,13 +223,13 @@ impl ff::Field for Fr {
     fn random(mut rng: impl RngCore) -> Self {
         Self::from_u512([
             rng.next_u64(),
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
         ])
     }
 
