@@ -454,12 +454,11 @@ pub fn best_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Cu
     }
 }
 
-pub fn best_multiexp_fast<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Curve {
+pub fn best_multiexp_precompute_serial<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C], pre_bases: &[C::Curve], pre: usize) -> C::Curve {
     assert_eq!(coeffs.len(), bases.len());
 
-    let pre_bases = multiexp_precompute(bases, 8);
     let mut acc = C::Curve::identity();
-    multiexp_precompute_serial::<C>(coeffs, &pre_bases, 8, &mut acc);
+    multiexp_precompute_serial::<C>(coeffs, &pre_bases, pre, &mut acc);
     acc
 }
 
@@ -628,9 +627,12 @@ mod test {
             let t1 = start_timer!(|| format!("older k={}", k));
             let e1 = super::best_multiexp(scalars, points);
             end_timer!(t1);
-
+            
+            // best_multiexp_precompute_serial
+            let pre = 8;
+            let pre_bases = super::multiexp_precompute(points, pre);
             let t2 = start_timer!(|| format!("older k={}", k));
-            let e2 = super::best_multiexp_fast(scalars, points);
+            let e2 = super::best_multiexp_precompute_serial(scalars, points, &pre_bases, pre);
             end_timer!(t2);
 
             assert_eq!(e0, e1);
