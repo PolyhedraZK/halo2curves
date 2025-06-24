@@ -451,7 +451,7 @@ macro_rules! new_curve_impl {
                                         is_identity,
                                     );
 
-                                    eprintln!("Is the point valid? {:?}", is_valid);
+                                    // eprintln!("Is the point valid? {:?}", is_valid);
 
                                     CtOption::new(
                                         p,
