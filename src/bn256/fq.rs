@@ -3,13 +3,14 @@ use crate::bn256::assembly::field_arithmetic_asm;
 #[cfg(not(feature = "asm"))]
 use crate::{arithmetic::macx, field_arithmetic, field_specific};
 
-use crate::arithmetic::{adc, bigint_geq, mac, sbb};
+use crate::arithmetic::{adc, add, bigint_geq, mac, sbb};
 use crate::extend_field_legendre;
 use crate::ff::{FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
 use crate::{
     field_bits, field_common, impl_add_binop_specify_output, impl_binops_additive,
     impl_binops_additive_specify_output, impl_binops_multiplicative,
-    impl_binops_multiplicative_mixed, impl_from_u64_u32, impl_sub_binop_specify_output, impl_sum_prod,
+    impl_binops_multiplicative_mixed, impl_from_u64_u32, impl_sub_binop_specify_output,
+    impl_sum_prod,
 };
 use core::convert::TryInto;
 use core::fmt;

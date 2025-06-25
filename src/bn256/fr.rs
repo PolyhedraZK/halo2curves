@@ -18,7 +18,7 @@ pub use table::FR_TABLE;
 #[cfg(not(feature = "bn256-table"))]
 use crate::impl_from_u64_u32;
 
-use crate::arithmetic::{adc, bigint_geq, mac, sbb};
+use crate::arithmetic::{adc, add, bigint_geq, mac, sbb};
 use crate::extend_field_legendre;
 use crate::ff::{FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
 use crate::{
@@ -185,7 +185,7 @@ impl From<u64> for Fr {
         if val < 65536 {
             FR_TABLE[val as usize]
         } else {
-            Fr([val, 0, 0, 0]) * R2
+            Fr::montgomery_form_short(val, R2)
         }
     }
 }
@@ -195,7 +195,7 @@ impl From<u32> for Fr {
         if val < 65536 {
             FR_TABLE[val as usize]
         } else {
-            Fr([val as u64, 0, 0, 0]) * R2
+            Fr::montgomery_form_short(val as u64, R2)
         }
     }
 }
@@ -220,6 +220,7 @@ impl ff::Field for Fr {
     const ZERO: Self = Self::zero();
     const ONE: Self = Self::one();
 
+    #[inline(always)]
     fn random(mut rng: impl RngCore) -> Self {
         Self::from_u512([
             rng.next_u64(),
@@ -233,6 +234,7 @@ impl ff::Field for Fr {
         ])
     }
 
+    #[inline(always)]
     fn double(&self) -> Self {
         self.double()
     }
@@ -244,10 +246,12 @@ impl ff::Field for Fr {
 
     /// Returns the multiplicative inverse of the
     /// element. If it is zero, the method fails.
+    #[inline(always)]
     fn invert(&self) -> CtOption<Self> {
         self.invert()
     }
 
+    #[inline(always)]
     fn sqrt(&self) -> CtOption<Self> {
         /// `(t - 1) // 2` where t * 2^s + 1 = p with t odd.
         const T_MINUS1_OVER2: [u64; 4] = [
@@ -259,6 +263,7 @@ impl ff::Field for Fr {
         ff::helpers::sqrt_tonelli_shanks(self, T_MINUS1_OVER2)
     }
 
+    #[inline(always)]
     fn sqrt_ratio(num: &Self, div: &Self) -> (Choice, Self) {
         ff::helpers::sqrt_ratio_generic(num, div)
     }
@@ -277,6 +282,7 @@ impl ff::PrimeField for Fr {
     const DELTA: Self = DELTA;
     const S: u32 = S;
 
+    #[inline(always)]
     fn from_repr(repr: Self::Repr) -> CtOption<Self> {
         let mut tmp = Fr([0, 0, 0, 0]);
 
@@ -303,6 +309,7 @@ impl ff::PrimeField for Fr {
         CtOption::new(tmp, Choice::from(is_some))
     }
 
+    #[inline(always)]
     fn to_repr(&self) -> Self::Repr {
         let tmp: [u64; 4] = (*self).into();
         let mut res = [0; 32];
@@ -314,6 +321,7 @@ impl ff::PrimeField for Fr {
         res
     }
 
+    #[inline(always)]
     fn is_odd(&self) -> Choice {
         Choice::from(self.to_repr()[0] & 1)
     }
@@ -322,6 +330,7 @@ impl ff::PrimeField for Fr {
 impl FromUniformBytes<64> for Fr {
     /// Converts a 512-bit little endian integer into
     /// an `Fr` by reducing by the modulus.
+    #[inline(always)]
     fn from_uniform_bytes(bytes: &[u8; 64]) -> Self {
         Self::from_u512([
             u64::from_le_bytes(bytes[0..8].try_into().unwrap()),
@@ -337,6 +346,7 @@ impl FromUniformBytes<64> for Fr {
 }
 
 impl FromUniformBytes<48> for Fr {
+    #[inline(always)]
     fn from_uniform_bytes(bytes: &[u8; 48]) -> Self {
         let repr = &mut [0u8; 64];
         (*repr)[0..48].copy_from_slice(&bytes[..48]);
@@ -375,5 +385,21 @@ mod test {
         let _res: Vec<_> = base.map(Fr::from).collect();
 
         end_timer!(timer);
+    }
+
+    #[test]
+    fn test_montgomery_form() {
+        let mut rng = ark_std::test_rng();
+        let a4 = [1u64, 0, 0, 0];
+        let a_mont = Fr::from(a4);
+        let a_mont2 = Fr::montgomery_form_short(a4[0], R2);
+        assert_eq!(a_mont, a_mont2);
+
+        for _ in 0..1 {
+            let a = rng.next_u64();
+            let a_mont = Fr::montgomery_form_short(a, R2);
+            let a_fr = Fr::from(a);
+            assert_eq!(a_fr, a_mont);
+        }
     }
 }
